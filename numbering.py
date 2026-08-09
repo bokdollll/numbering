@@ -5,17 +5,14 @@ import re
 # ==========================================
 # 1. 구글 스프레드시트 연동 설정
 # ==========================================
-# 여기에 구글 시트 [웹에 게시(CSV)] 링크를 붙여넣으십시오.
-SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQvHn3sGjNkCyLuvBYcC_z8qshngxNAWmqfKieDarv_3TOyzxlmrSY7B5WHwhASoTi5AA_dKAXZ5Atb/pub?output=csv"
+SHEET_CSV_URL = "선생님의_구글시트_CSV_링크를_여기에_붙여넣으세요"
 
-st.set_page_config(page_title="로테이션 면접 타임테이블 조회", page_icon="🕒", layout="wide")
+st.set_page_config(page_title="로테이션 면접 타임테이블 및 배치도", page_icon="🏫", layout="wide")
 
-# 데이터를 가져오는 함수 (구글 서버 부하 방지를 위해 60초마다 새로 갱신)
 @st.cache_data(ttl=60)
 def load_data_from_sheet(url):
     try:
         df = pd.read_csv(url)
-        # 필수 열이 잘 작성되었는지 확인
         if all(col in df.columns for col in ["학생 이름", "부여된 번호", "소속"]):
             return df.dropna(subset=["학생 이름", "부여된 번호"])
         else:
@@ -61,7 +58,7 @@ TIMETABLE_DICT = {
 }
 
 # ==========================================
-# 3. HTML 타임테이블 생성 함수
+# 3. HTML 타임테이블 & 면접실 배치도 생성 함수
 # ==========================================
 def get_html_table(highlight_num=None):
     raw_table = [
@@ -78,66 +75,113 @@ def get_html_table(highlight_num=None):
         .timetable th { background-color: #2b3a55; color: white; border: 1px solid #d3d3d3; padding: 10px; font-size: 14px; }
         .timetable td { border: 1px solid #d3d3d3; padding: 12px 5px; vertical-align: middle; font-size: 14px; color: #333; }
         .timetable tr:nth-child(even) { background-color: #f9f9f9; }
-        .highlight { background-color: #ffeb3b; font-weight: 900; color: #d32f2f; padding: 3px 6px; border-radius: 4px; box-shadow: 0 0 5px rgba(255,235,59,0.8); font-size: 1.1em; }
+        .hl { background-color: #ffeb3b; font-weight: 900; color: #d32f2f; padding: 2px 5px; border-radius: 4px; border: 1px solid #f57f17; }
     </style>
     <table class="timetable">
-        <tr>
-            <th>시간</th>
-            <th>A반 구상</th>
-            <th>A반 면접</th>
-            <th>B반 면접관</th>
-            <th>B반 구상</th>
-            <th>B반 면접</th>
-            <th>A반 면접관</th>
-        </tr>
+        <tr><th>타임 (시간)</th><th>A반 구상</th><th>A반 면접</th><th>B반 면접관</th><th>B반 구상</th><th>B반 면접</th><th>A반 면접관</th></tr>
     """
     for row in raw_table:
         html += "<tr>"
         for i, cell in enumerate(row):
             if highlight_num and i > 0 and cell:
-                cell = re.sub(rf'\b({highlight_num})\b', r'<span class="highlight">\1</span>', cell)
+                cell = re.sub(rf'\b({highlight_num})\b', r'<span class="hl">\1</span>', cell)
             html += f"<td>{cell}</td>"
         html += "</tr>"
     html += "</table>"
     return html
+    
+def get_room_map_html(highlight_num=None):
+    # 면접실 배치도 데이터 맵핑
+    rooms_data = {
+        "A반 1번": [("25,29<br>17,21", "top-left"), ("26,30<br>18,22", "top-right"), ("1,5,<br>9,13", "bottom-mid")],
+        "A반 2번": [("27,31<br>19,23", "top-left"), ("28,()<br>20,24", "top-right"), ("2,6,<br>10,14", "bottom-mid")],
+        "A반 3번": [("3,7,<br>11,15", "top-mid"), ("29,17,<br>21,25", "bottom-left"), ("30,18,<br>22,26", "bottom-right")],
+        "A반 4번": [("4,8,<br>12,16", "top-mid"), ("31,19,<br>23,27", "bottom-left"), ("(),20,<br>24,28", "bottom-right")],
+        "B반 1번": [("9,13,<br>1,(5,11)", "top-left"), ("10,14,<br>2,6", "top-right"), ("17,21,<br>25,29", "bottom-mid")],
+        "B반 2번": [("11,15,<br>3,(7,12)", "top-left"), ("12,16,<br>4,8", "top-right"), ("18,22,<br>26,30", "bottom-mid")],
+        "B반 3번": [("19,23,<br>27,31", "top-mid"), ("13,1,<br>5,9", "bottom-left"), ("14,2,<br>6,10", "bottom-right")],
+        "B반 4번": [("20,24,<br>28", "top-mid"), ("15,3,<br>7", "bottom-left"), ("16,4,<br>8", "bottom-right")]
+    }
 
+    def render_block(text):
+        if highlight_num and text:
+            text = re.sub(rf'\b({highlight_num})\b', r'<span class="hl">\1</span>', text)
+        return text
+
+    html = """
+    <style>
+        .map-container { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; margin-top: 15px; }
+        .room-section { flex: 1; min-width: 320px; background: #fafafa; padding: 15px; border-radius: 10px; border: 1px solid #ccc; }
+        .section-title { text-align: center; font-weight: bold; font-size: 16px; margin-bottom: 15px; color: #1a237e; }
+        .grid-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .room-box { border: 2px solid #333; height: 160px; position: relative; background: #fff; border-radius: 6px; }
+        .room-label { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-weight: bold; font-size: 16px; color: #555; }
+        .seat { position: absolute; border: 1px solid #999; padding: 4px; font-size: 12px; text-align: center; background: #f0f0f0; border-radius: 4px; min-width: 60px; }
+        .pos-top-left { top: 6px; left: 6px; }
+        .pos-top-right { top: 6px; right: 6px; }
+        .pos-top-mid { top: 6px; left: 50%; transform: translateX(-50%); }
+        .pos-bottom-mid { bottom: 6px; left: 50%; transform: translateX(-50%); }
+        .pos-bottom-left { bottom: 6px; left: 6px; }
+        .pos-bottom-right { bottom: 6px; right: 6px; }
+    </style>
+    <div class="map-container">
+        <div class="room-section">
+            <div class="section-title">🅰️ A반 면접실 배치도 (1학년)</div>
+            <div class="grid-layout">
+    """
+    
+    # A반 1~4번 렌더링
+    for name in ["A반 1번", "A반 2번", "A반 3번", "A반 4번"]:
+        seats = rooms_data[name]
+        html += f'<div class="room-box"><div class="room-label">{name[3:]}</div>'
+        for text, pos in seats:
+            html += f'<div class="seat pos-{pos}">{render_block(text)}</div>'
+        html += '</div>'
+        
+    html += '</div></div><div class="room-section"><div class="section-title">🅱️ B반 면접실 배치도 (2학년)</div><div class="grid-layout">'
+    
+    # B반 1~4번 렌더링
+    for name in ["B반 1번", "B반 2번", "B반 3번", "B반 4번"]:
+        seats = rooms_data[name]
+        html += f'<div class="room-box"><div class="room-label">{name[3:]}</div>'
+        for text, pos in seats:
+            html += f'<div class="seat pos-{pos}">{render_block(text)}</div>'
+        html += '</div>'
+        
+    html += '</div></div></div>'
+    return html
 
 # ==========================================
-# 4. 화면 렌더링 (오직 학생 조회 화면만 존재)
+# 4. 화면 렌더링
 # ==========================================
-st.title("🕒 나의 로테이션 시간표 조회")
+st.title("🕒 나의 로테이션 시간표 및 면접실 배치도")
 
-# 시트 데이터 불러오기
 df = load_data_from_sheet(SHEET_CSV_URL)
 
 if df is None:
-    st.error("오류: 구글 스프레드시트 링크를 다시 확인해 주십시오. '웹에 게시'가 정상적으로 이루어지지 않았습니다.")
+    st.error("오류: 구글 스프레드시트 링크를 다시 확인해 주십시오.")
 elif df.empty:
-    st.warning("아직 선생님께서 명단과 번호를 입력하지 않으셨습니다. 잠시 후 다시 확인해 주십시오.")
+    st.warning("아직 선생님께서 명단과 번호를 입력하지 않으셨습니다.")
 else:
-    # 학생 이름 목록 추출 (오름차순 정렬)
     student_list = sorted(df["학생 이름"].astype(str).tolist())
     selected_name = st.selectbox("자신의 이름을 선택해 주십시오.", ["-- 선택 --"] + student_list)
     
     if selected_name != "-- 선택 --":
-        # 선택한 학생의 정보 추출
         student_info = df[df["학생 이름"] == selected_name].iloc[0]
         try:
             my_num = int(student_info["부여된 번호"])
             my_class = str(student_info["소속"]).strip()
         except ValueError:
-            st.error("선생님께서 입력하신 번호에 문자가 포함되어 있습니다. 구글 시트를 확인해 주십시오.")
+            st.error("숫자 번호 오류가 발생했습니다. 구글 시트를 확인해 주십시오.")
             st.stop()
             
         st.success(f"반갑습니다, **{selected_name}**님! 부여받은 번호는 **{my_class} {my_num}번** 입니다.")
         
-        # 타임별 역할 카드 뷰
+        # 1) 타임별 역할
         st.subheader("📋 타임별 역할 안내")
         roles = TIMETABLE_DICT.get(my_num, {})
         
-        if not roles:
-            st.error("입력된 번호가 1~31번 사이가 아닙니다. 선생님께 확인을 요청하십시오.")
-        else:
+        if roles:
             cols = st.columns(5)
             for time_idx in range(1, 6):
                 role = roles.get(time_idx, "오류")
@@ -152,9 +196,13 @@ else:
                         """, unsafe_allow_html=True
                     )
             
-            # 전체 시간표 내 위치 강조 표시
+            # 2) 타임테이블 위치
             st.markdown("---")
-            st.subheader("📍 전체 시간표 내 동선 확인")
-            st.markdown("전체 일정표에서 본인의 번호가 **노란색**으로 강조되어 표시됩니다.")
-            highlighted_table = get_html_table(highlight_num=my_num)
-            st.markdown(highlighted_table, unsafe_allow_html=True)
+            st.subheader("📍 1. 전체 시간표 내 동선 확인")
+            st.markdown(get_html_table(highlight_num=my_num), unsafe_allow_html=True)
+            
+            # 3) 면접실 배치도 위치 (새로 추가된 기능)
+            st.markdown("---")
+            st.subheader("🗺️ 2. 면접실 내 좌석 위치 확인")
+            st.markdown("아래 면접실 배치도에서 본인의 번호가 **노란색**으로 표시됩니다.")
+            st.markdown(get_room_map_html(highlight_num=my_num), unsafe_allow_html=True)
