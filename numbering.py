@@ -26,7 +26,7 @@ def load_data_from_sheet(url):
 TIMETABLE_DICT = {
     1: {1: "면접자(구상실)", 2: "면접자(A반 1번 면접실)", 3: "면접관(B반 3번 면접실)", 4: "면접관(B반 1번 면접실)", 5: "x (대기)"},
     2: {1: "면접자(구상실)", 2: "면접자(A반 2번 면접실)", 3: "면접관(B반 3번 면접실)", 4: "면접관(B반 1번 면접실)", 5: "x (대기)"},
-    3: {1: "면접자(구상실)", 2: "면접자(A반 3번 면접실)", 3: "면접관(B반 4번 면접실)", 4: "면접관(B반 2번 면접실)", 5: "x (대기)"},
+    3: {1: "면접자(구상실)", 2: "면접자(A반 3번 면접실)", 4: "면접관(B반 4번 면접실)", 4: "면접관(B반 2번 면접실)", 5: "x (대기)"},
     4: {1: "면접자(구상실)", 2: "면접자(A반 4번 면접실)", 3: "면접관(B반 4번 면접실)", 4: "면접관(B반 2번 면접실)", 5: "x (대기)"},
     5: {1: "x (대기)", 2: "면접자(구상실)", 3: "면접자(A반 1번 면접실)", 4: "면접관(B반 3번 면접실)", 5: "면접관(B반 1번 면접실)"},
     6: {1: "x (대기)", 2: "면접자(구상실)", 3: "면접자(A반 2번 면접실)", 4: "면접관(B반 3번 면접실)", 5: "면접관(B반 1번 면접실)"},
@@ -89,9 +89,8 @@ def get_html_table(highlight_num=None):
         html += "</tr>"
     html += "</table>"
     return html
-    
+
 def get_room_map_html(highlight_num=None):
-    # 면접실 배치도 데이터 맵핑
     rooms_data = {
         "A반 1번": [("25,29<br>17,21", "top-left"), ("26,30<br>18,22", "top-right"), ("1,5,<br>9,13", "bottom-mid")],
         "A반 2번": [("27,31<br>19,23", "top-left"), ("28,()<br>20,24", "top-right"), ("2,6,<br>10,14", "bottom-mid")],
@@ -111,10 +110,12 @@ def get_room_map_html(highlight_num=None):
     html = """
     <style>
         .map-container { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; margin-top: 15px; }
-        .room-section { flex: 1; min-width: 320px; background: #fafafa; padding: 15px; border-radius: 10px; border: 1px solid #ccc; }
-        .section-title { text-align: center; font-weight: bold; font-size: 16px; margin-bottom: 15px; color: #1a237e; }
-        .grid-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .room-section { flex: 1; min-width: 340px; background: #fafafa; padding: 15px; border-radius: 10px; border: 1px solid #ccc; padding-bottom: 50px; }
+        .section-title { text-align: center; font-weight: bold; font-size: 16px; margin-bottom: 20px; color: #1a237e; }
+        .grid-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 15px; }
         .room-box { border: 2px solid #333; height: 160px; position: relative; background: #fff; border-radius: 6px; }
+        .room-left { transform: translateY(0px); }
+        .room-right { transform: translateY(35px); }
         .room-label { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-weight: bold; font-size: 16px; color: #555; }
         .seat { position: absolute; border: 1px solid #999; padding: 4px; font-size: 12px; text-align: center; background: #f0f0f0; border-radius: 4px; min-width: 60px; }
         .pos-top-left { top: 6px; left: 6px; }
@@ -125,25 +126,37 @@ def get_room_map_html(highlight_num=None):
         .pos-bottom-right { bottom: 6px; right: 6px; }
     </style>
     <div class="map-container">
+        <!-- 1. B반 면접실 배치도 (좌측 배치) -->
+        <div class="room-section">
+            <div class="section-title">🅱️ B반 면접실 배치도 (2학년)</div>
+            <div class="grid-layout">
+    """
+    
+    # B반 1~4번 사선 렌더링 (1,3번: 좌측 / 2,4번: 우측 및 하단 오프셋)
+    b_rooms = ["B반 1번", "B반 2번", "B반 3번", "B반 4번"]
+    for idx, name in enumerate(b_rooms):
+        seats = rooms_data[name]
+        pos_class = "room-left" if idx % 2 == 0 else "room-right"
+        html += f'<div class="room-box {pos_class}"><div class="room-label">{name[3:]}</div>'
+        for text, pos in seats:
+            html += f'<div class="seat pos-{pos}">{render_block(text)}</div>'
+        html += '</div>'
+        
+    html += """
+            </div>
+        </div>
+        <!-- 2. A반 면접실 배치도 (우측 배치) -->
         <div class="room-section">
             <div class="section-title">🅰️ A반 면접실 배치도 (1학년)</div>
             <div class="grid-layout">
     """
     
-    # A반 1~4번 렌더링
-    for name in ["A반 1번", "A반 2번", "A반 3번", "A반 4번"]:
+    # A반 1~4번 사선 렌더링
+    a_rooms = ["A반 1번", "A반 2번", "A반 3번", "A반 4번"]
+    for idx, name in enumerate(a_rooms):
         seats = rooms_data[name]
-        html += f'<div class="room-box"><div class="room-label">{name[3:]}</div>'
-        for text, pos in seats:
-            html += f'<div class="seat pos-{pos}">{render_block(text)}</div>'
-        html += '</div>'
-        
-    html += '</div></div><div class="room-section"><div class="section-title">🅱️ B반 면접실 배치도 (2학년)</div><div class="grid-layout">'
-    
-    # B반 1~4번 렌더링
-    for name in ["B반 1번", "B반 2번", "B반 3번", "B반 4번"]:
-        seats = rooms_data[name]
-        html += f'<div class="room-box"><div class="room-label">{name[3:]}</div>'
+        pos_class = "room-left" if idx % 2 == 0 else "room-right"
+        html += f'<div class="room-box {pos_class}"><div class="room-label">{name[3:]}</div>'
         for text, pos in seats:
             html += f'<div class="seat pos-{pos}">{render_block(text)}</div>'
         html += '</div>'
@@ -201,7 +214,7 @@ else:
             st.subheader("📍 1. 전체 시간표 내 동선 확인")
             st.markdown(get_html_table(highlight_num=my_num), unsafe_allow_html=True)
             
-            # 3) 면접실 배치도 위치 (새로 추가된 기능)
+            # 3) 면접실 배치도 위치
             st.markdown("---")
             st.subheader("🗺️ 2. 면접실 내 좌석 위치 확인")
             st.markdown("아래 면접실 배치도에서 본인의 번호가 **노란색**으로 표시됩니다.")
