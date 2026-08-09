@@ -5,7 +5,7 @@ import re
 # ==========================================
 # 1. 구글 스프레드시트 연동 설정
 # ==========================================
-SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQvHn3sGjNkCyLuvBYcC_z8qshngxNAWmqfKieDarv_3TOyzxlmrSY7B5WHwhASoTi5AA_dKAXZ5Atb/pubhtml"
+SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQvHn3sGjNkCyLuvBYcC_z8qshngxNAWmqfKieDarv_3TOyzxlmrSY7B5WHwhASoTi5AA_dKAXZ5Atb/pub?output=csv"
 
 st.set_page_config(page_title="로테이션 면접 타임테이블 및 배치도", page_icon="🏫", layout="wide")
 
