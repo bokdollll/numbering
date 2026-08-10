@@ -26,7 +26,7 @@ def load_data_from_sheet(url):
 TIMETABLE_DICT = {
     1: {1: "면접자(구상실)", 2: "면접자(A반 1번 면접실)", 3: "면접관(B반 3번 면접실)", 4: "면접관(B반 1번 면접실)", 5: "x (대기)"},
     2: {1: "면접자(구상실)", 2: "면접자(A반 2번 면접실)", 3: "면접관(B반 3번 면접실)", 4: "면접관(B반 1번 면접실)", 5: "x (대기)"},
-    3: {1: "면접자(구상실)", 2: "면접자(A반 3번 면접실)", 4: "면접관(B반 4번 면접실)", 4: "면접관(B반 2번 면접실)", 5: "x (대기)"},
+    3: {1: "면접자(구상실)", 2: "면접자(A반 3번 면접실)", 3: "면접관(B반 4번 면접실)", 4: "면접관(B반 2번 면접실)", 5: "x (대기)"},
     4: {1: "면접자(구상실)", 2: "면접자(A반 4번 면접실)", 3: "면접관(B반 4번 면접실)", 4: "면접관(B반 2번 면접실)", 5: "x (대기)"},
     5: {1: "x (대기)", 2: "면접자(구상실)", 3: "면접자(A반 1번 면접실)", 4: "면접관(B반 3번 면접실)", 5: "면접관(B반 1번 면접실)"},
     6: {1: "x (대기)", 2: "면접자(구상실)", 3: "면접자(A반 2번 면접실)", 4: "면접관(B반 3번 면접실)", 5: "면접관(B반 1번 면접실)"},
@@ -90,8 +90,9 @@ def get_html_table(highlight_num=None):
     html += "</table>"
     return html
 
-def get_room_map_html(highlight_num=None):
-    rooms_data = {
+def get_room_map_html(highlight_num=None, time_filter="전체"):
+    # 1) 전체 타임통합 데이터
+    rooms_all = {
         "A반 1번": [("25,29<br>17,21", "top-left"), ("26,30<br>18,22", "top-right"), ("1,5,<br>9,13", "bottom-mid")],
         "A반 2번": [("27,31<br>19,23", "top-left"), ("28,()<br>20,24", "top-right"), ("2,6,<br>10,14", "bottom-mid")],
         "A반 3번": [("3,7,<br>11,15", "top-mid"), ("29,17,<br>21,25", "bottom-left"), ("30,18,<br>22,26", "bottom-right")],
@@ -102,8 +103,54 @@ def get_room_map_html(highlight_num=None):
         "B반 4번": [("20,24,<br>28", "top-mid"), ("15,3,<br>7", "bottom-left"), ("16,4,<br>8", "bottom-right")]
     }
 
+    # 2) 각 타임별 전용 데이터 (2~5타임)
+    rooms_by_time = {
+        "2타임": {
+            "A반 1번": [("25", "top-left"), ("26", "top-right"), ("1", "bottom-mid")],
+            "A반 2번": [("27", "top-left"), ("28", "top-right"), ("2", "bottom-mid")],
+            "A반 3번": [("3", "top-mid"), ("29", "bottom-left"), ("30", "bottom-right")],
+            "A반 4번": [("4", "top-mid"), ("31", "bottom-left"), ("-", "bottom-right")],
+            "B반 1번": [("9", "top-left"), ("10", "top-right"), ("17", "bottom-mid")],
+            "B반 2번": [("11", "top-left"), ("12", "top-right"), ("18", "bottom-mid")],
+            "B반 3번": [("19", "top-mid"), ("13", "bottom-left"), ("14", "bottom-right")],
+            "B반 4번": [("20", "top-mid"), ("15", "bottom-left"), ("16", "bottom-right")]
+        },
+        "3타임": {
+            "A반 1번": [("29", "top-left"), ("30", "top-right"), ("5", "bottom-mid")],
+            "A반 2번": [("31", "top-left"), ("-", "top-right"), ("6", "bottom-mid")],
+            "A반 3번": [("7", "top-mid"), ("17", "bottom-left"), ("18", "bottom-right")],
+            "A반 4번": [("8", "top-mid"), ("19", "bottom-left"), ("20", "bottom-right")],
+            "B반 1번": [("13", "top-left"), ("14", "top-right"), ("21", "bottom-mid")],
+            "B반 2번": [("15", "top-left"), ("16", "top-right"), ("22", "bottom-mid")],
+            "B반 3번": [("23", "top-mid"), ("1", "bottom-left"), ("2", "bottom-right")],
+            "B반 4번": [("24", "top-mid"), ("3", "bottom-left"), ("4", "bottom-right")]
+        },
+        "4타임": {
+            "A반 1번": [("17", "top-left"), ("18", "top-right"), ("9", "bottom-mid")],
+            "A반 2번": [("19", "top-left"), ("20", "top-right"), ("10", "bottom-mid")],
+            "A반 3번": [("11", "top-mid"), ("21", "bottom-left"), ("22", "bottom-right")],
+            "A반 4번": [("12", "top-mid"), ("23", "bottom-left"), ("24", "bottom-right")],
+            "B반 1번": [("1", "top-left"), ("2", "top-right"), ("25", "bottom-mid")],
+            "B반 2번": [("3", "top-left"), ("4", "top-right"), ("26", "bottom-mid")],
+            "B반 3번": [("27", "top-mid"), ("5", "bottom-left"), ("6", "bottom-right")],
+            "B반 4번": [("28", "top-mid"), ("7", "bottom-left"), ("8", "bottom-right")]
+        },
+        "5타임": {
+            "A반 1번": [("21", "top-left"), ("22", "top-right"), ("13", "bottom-mid")],
+            "A반 2번": [("23", "top-left"), ("24", "top-right"), ("14", "bottom-mid")],
+            "A반 3번": [("15", "top-mid"), ("25", "bottom-left"), ("26", "bottom-right")],
+            "A반 4번": [("16", "top-mid"), ("27", "bottom-left"), ("28", "bottom-right")],
+            "B반 1번": [("5, 11", "top-left"), ("6", "top-right"), ("29", "bottom-mid")],
+            "B반 2번": [("7, 12", "top-left"), ("8", "top-right"), ("30", "bottom-mid")],
+            "B반 3번": [("31", "top-mid"), ("9", "bottom-left"), ("10", "bottom-right")],
+            "B반 4번": [("-", "top-mid"), ("-", "bottom-left"), ("-", "bottom-right")]
+        }
+    }
+
+    rooms_data = rooms_by_time.get(time_filter, rooms_all)
+
     def render_block(text):
-        if highlight_num and text:
+        if highlight_num and text and text != "-":
             text = re.sub(rf'\b({highlight_num})\b', r'<span class="hl">\1</span>', text)
         return text
 
@@ -117,7 +164,7 @@ def get_room_map_html(highlight_num=None):
         .room-left { transform: translateY(0px); }
         .room-right { transform: translateY(35px); }
         .room-label { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-weight: bold; font-size: 16px; color: #555; }
-        .seat { position: absolute; border: 1px solid #999; padding: 4px; font-size: 12px; text-align: center; background: #f0f0f0; border-radius: 4px; min-width: 60px; }
+        .seat { position: absolute; border: 1px solid #999; padding: 4px; font-size: 13px; text-align: center; background: #f0f0f0; border-radius: 4px; min-width: 60px; }
         .pos-top-left { top: 6px; left: 6px; }
         .pos-top-right { top: 6px; right: 6px; }
         .pos-top-mid { top: 6px; left: 50%; transform: translateX(-50%); }
@@ -132,7 +179,6 @@ def get_room_map_html(highlight_num=None):
             <div class="grid-layout">
     """
     
-    # B반 1~4번 사선 렌더링 (1,3번: 좌측 / 2,4번: 우측 및 하단 오프셋)
     b_rooms = ["B반 1번", "B반 2번", "B반 3번", "B반 4번"]
     for idx, name in enumerate(b_rooms):
         seats = rooms_data[name]
@@ -151,7 +197,6 @@ def get_room_map_html(highlight_num=None):
             <div class="grid-layout">
     """
     
-    # A반 1~4번 사선 렌더링
     a_rooms = ["A반 1번", "A반 2번", "A반 3번", "A반 4번"]
     for idx, name in enumerate(a_rooms):
         seats = rooms_data[name]
@@ -214,8 +259,15 @@ else:
             st.subheader("📍 1. 전체 시간표 내 동선 확인")
             st.markdown(get_html_table(highlight_num=my_num), unsafe_allow_html=True)
             
-            # 3) 면접실 배치도 위치
+            # 3) 면접실 배치도 위치 (타임 필터 추가)
             st.markdown("---")
             st.subheader("🗺️ 2. 면접실 내 좌석 위치 확인")
+            
+            time_filter = st.radio(
+                "조회할 타임을 선택하십시오:",
+                ["전체", "2타임", "3타임", "4타임", "5타임"],
+                horizontal=True
+            )
+            
             st.markdown("아래 면접실 배치도에서 본인의 번호가 **노란색**으로 표시됩니다.")
-            st.markdown(get_room_map_html(highlight_num=my_num), unsafe_allow_html=True)
+            st.markdown(get_room_map_html(highlight_num=my_num, time_filter=time_filter), unsafe_allow_html=True)
